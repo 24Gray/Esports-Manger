@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR Scanner (html5-qrcode · No API)</title>
+<style>
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+         max-width: 640px; margin: 0 auto; padding: 16px; line-height: 1.35; }
+  #reader { width: 100%; border-radius: 12px; overflow: hidden; }
+  .row { display:grid; gap:10px; }
+  button, input[type=file] { padding: 12px 14px; border-radius: 12px; border:1px solid #ddd; font-size:16px; }
+  pre { background:#f6f6f6; padding:12px; border-radius:10px; min-height:2.5em; white-space:pre-wrap; }
+</style>
+
+<h1>QR Scanner (html5-qrcode)</h1>
+<div id="reader"></div>
+<div class="row" style="margin-top:10px;">
+  <button id="stop">Stop</button>
+  <button id="copy">Copy decoded text</button>
+  <button id="return">Return to app</button>
+</div>
+<pre id="out"></pre>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+const out = document.getElementById('out');
+const reader = new Html5Qrcode("reader");
+function show(s){ out.textContent = s || ''; }
+
+async function start() {
+  // Prefer rear camera and define a scan box to focus
+  const config = { fps: 12, qrbox: 240, aspectRatio: 1.7778 };
+  const cameras = await Html5Qrcode.getCameras();
+  if (!cameras || !cameras.length) { show('No cameras found.'); return; }
+  let camId = cameras[0].id;
+  for (const c of cameras) {
+    const l = (c.label||'').toLowerCase();
+    if (l.includes('back') || l.includes('rear')) { camId = c.id; break; }
+  }
+  await reader.start(
+    { deviceId: { exact: camId } },
+    config,
+    (decodedText) => {
+      show(decodedText);
+      reader.stop();
+    },
+    (err) => { /* ignore scan errors */ }
+  );
+}
+
+document.getElementById('stop').onclick = () => reader.stop();
+document.getElementById('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(out.textContent||''); alert('Copied!'); }
+  catch(e){ alert('Copy failed'); }
+};
+
+// Optional return param
+const params = new URLSearchParams(location.search);
+const returnUrl = params.get('return');
+document.getElementById('return').onclick = () => {
+  if (!returnUrl) return alert('Add ?return=<your-glide-deeplink> to the URL you opened.');
+  const qr = encodeURIComponent(out.textContent || '');
+  const sep = returnUrl.includes('?') ? '&' : '?';
+  location.href = `${returnUrl}${sep}qr=${qr}`;
+};
+
+start();
+</script>
+</html>
